@@ -48,12 +48,12 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     //db collection 
-    const divisionsCollection =client.db("BloodBank").collection("Division")
-    const districtCollection =client.db("BloodBank").collection("district")
-    const upazilaCollection =client.db("BloodBank").collection("upazilla")
-  
-    const userCollection =client.db("BloodBank").collection("user")
-  
+    const divisionsCollection = client.db("BloodBank").collection("Division")
+    const districtCollection = client.db("BloodBank").collection("district")
+    const upazilaCollection = client.db("BloodBank").collection("upazilla")
+
+    const userCollection = client.db("BloodBank").collection("user")
+
     // auth related api
     app.post('/jwt', async (req, res) => {
       const user = req.body
@@ -84,33 +84,40 @@ async function run() {
       }
     })
 
-     //District ,thana
-     app.get("/division", async(req ,res)=>{
+    //District ,thana
+    app.get("/division", async (req, res) => {
       const result = await divisionsCollection.find().toArray()
       res.send(result)
 
-     })
-     app.get("/district/:id", async(req ,res)=>{
+    })
+    app.get("/district/:id", async (req, res) => {
       const id = req.params.id;
-      const query ={division_id : id}
+      const query = { division_id: id }
       const result = await districtCollection.find(query).toArray()
       res.send(result)
 
-     })
-     app.get("/upazila/:id", async(req ,res)=>{
+    })
+    app.get("/upazila/:id", async (req, res) => {
       const id = req.params.id;
-      const query ={district_id : id}
+      const query = { district_id: id }
       const result = await upazilaCollection.find(query).toArray()
       res.send(result)
 
-     })
-  //  create user
-  app.post("/user", async (req ,res)=>{
-    const user =req.body;
-    const result =await userCollection.insertOne(user)
-    res.send(result)
-  })
+    })
+    //  create user
 
+    app.post("/user", async (req, res) => {
+      const user = req.body;
+      const result = await userCollection.insertOne(user)
+      res.send(result)
+    })
+    // get a user by email
+    app.get("/user/:email", async (req ,res)=>{
+      const email = req.params.email
+      const query = {email : email}
+      const result =await userCollection.findOne(query)
+      res.send(result)
+    })
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 })
     console.log(
