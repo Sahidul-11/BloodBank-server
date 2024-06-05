@@ -108,14 +108,37 @@ async function run() {
 
     app.post("/user", async (req, res) => {
       const user = req.body;
+      const email = user?.email;
+      const isExist = await userCollection.findOne({ email: email })
+      if (isExist) {
+        return
+      }
       const result = await userCollection.insertOne(user)
       res.send(result)
     })
     // get a user by email
-    app.get("/user/:email", async (req ,res)=>{
+    app.get("/user/:email", async (req, res) => {
       const email = req.params.email
-      const query = {email : email}
-      const result =await userCollection.findOne(query)
+      const query = { email: email }
+      const result = await userCollection.findOne(query)
+      res.send(result)
+    })
+    app.put("/user/:email", async (req, res) => {
+      const user = req.body;
+      const email = req.params.email
+      const query = { email: email }
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          name: user?.name,
+          avatar: user?.avatar,
+          BloodGroup: user?.BloodGroup,
+          division: user?.division,
+          district: user?.district,
+          upazila: user?.upazila,
+        }
+      }
+      const result = await userCollection.updateOne(query , updateDoc , options)
       res.send(result)
     })
     // Send a ping to confirm a successful connection
@@ -130,9 +153,9 @@ async function run() {
 run().catch(console.dir)
 
 app.get('/', (req, res) => {
-  res.send('Hello from StayVista Server..')
+  res.send('Hello from BloodBank Server..')
 })
 
 app.listen(port, () => {
-  console.log(`StayVista is running on port ${port}`)
+  console.log(`BloodBank is running on port ${port}`)
 })
