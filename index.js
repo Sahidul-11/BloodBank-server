@@ -116,6 +116,21 @@ async function run() {
       const result = await userCollection.insertOne(user)
       res.send(result)
     })
+    //get all user
+    app.get("/users", async (req, res) => {
+      const sort = req.query.sort
+      console.log(sort)
+      let filter ={}
+      if (sort === "true") {
+        filter = {status : true}
+      }
+      if (sort === "false") {
+        filter = {status : false}
+      }
+    
+      const result = await userCollection.find(filter).toArray()
+      res.send(result)
+    })
     // get a user by email
     app.get("/user/:email", async (req, res) => {
       const email = req.params.email
@@ -126,8 +141,19 @@ async function run() {
     app.put("/user/:email", async (req, res) => {
       const user = req.body;
       const email = req.params.email
+      const isStatus = req.query.status;
+      const role = req.query.role;
       const query = { email: email }
       const options = { upsert: true };
+      if (role && role !== "null" && role!=="undefined") {
+        const result = await userCollection.updateOne(query, { $set: { role: role } }, options)
+        return res.send(result)
+      }
+      if (isStatus) {
+        const AUser = await userCollection.findOne(query)
+        const result = await userCollection.updateOne(query, { $set: { status: !AUser?.status } }, options)
+        return res.send(result)
+      }
       const updateDoc = {
         $set: {
           name: user?.name,
@@ -138,7 +164,7 @@ async function run() {
           upazila: user?.upazila,
         }
       }
-      const result = await userCollection.updateOne(query , updateDoc , options)
+      const result = await userCollection.updateOne(query, updateDoc, options)
       res.send(result)
     })
     // Send a ping to confirm a successful connection
