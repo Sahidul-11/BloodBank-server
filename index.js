@@ -53,6 +53,7 @@ async function run() {
     const upazilaCollection = client.db("BloodBank").collection("upazilla")
 
     const userCollection = client.db("BloodBank").collection("user")
+    const donationReqCollection = client.db("BloodBank").collection("DonationReq")
 
     // auth related api
     app.post('/jwt', async (req, res) => {
@@ -120,14 +121,14 @@ async function run() {
     app.get("/users", async (req, res) => {
       const sort = req.query.sort
       console.log(sort)
-      let filter ={}
+      let filter = {}
       if (sort === "true") {
-        filter = {status : true}
+        filter = { status: true }
       }
       if (sort === "false") {
-        filter = {status : false}
+        filter = { status: false }
       }
-    
+
       const result = await userCollection.find(filter).toArray()
       res.send(result)
     })
@@ -145,7 +146,7 @@ async function run() {
       const role = req.query.role;
       const query = { email: email }
       const options = { upsert: true };
-      if (role && role !== "null" && role!=="undefined") {
+      if (role && role !== "null" && role !== "undefined") {
         const result = await userCollection.updateOne(query, { $set: { role: role } }, options)
         return res.send(result)
       }
@@ -165,6 +166,12 @@ async function run() {
         }
       }
       const result = await userCollection.updateOne(query, updateDoc, options)
+      res.send(result)
+    })
+    // donation req create
+    app.put("/donationReq", async (req, res) => {
+      const Request = req.body;
+      const result = await donationReqCollection.insertOne(Request)
       res.send(result)
     })
     // Send a ping to confirm a successful connection
