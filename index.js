@@ -174,6 +174,13 @@ async function run() {
       const result = await donationReqCollection.insertOne(Request)
       res.send(result)
     })
+    //get all donation requests
+    app.get("/donationReq/:email", async (req, res) => {
+      const email = req.params.email
+      const query = { requesterEmail: email }
+      const result = await donationReqCollection.find(query).toArray()
+      res.send(result)
+    })
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 })
     console.log(
