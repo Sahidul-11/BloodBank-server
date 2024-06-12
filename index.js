@@ -171,6 +171,13 @@ async function run() {
     // donation req create
     app.put("/donationReq", async (req, res) => {
       const Request = req.body;
+      const id = req.query.id
+      const options = { upsert: true };
+      if (id && id !== "null" && id !== "undefined") {
+        const result = await donationReqCollection.updateOne({_id : new ObjectId(id)}, { $set: {...Request} }, options)
+        
+        return res.send(result)
+      }
       const result = await donationReqCollection.insertOne(Request)
       res.send(result)
     })
@@ -179,6 +186,16 @@ async function run() {
       const email = req.params.email
       const query = { requesterEmail: email }
       const result = await donationReqCollection.find(query).toArray()
+      res.send(result)
+    })
+    app.get("/allRequest", async(req ,res)=>{
+      let query = {}
+      const status = req?.query?.status
+      if (status && status !== "null" && status !== "undefined" ) {
+        query ={status}
+      }
+
+      const result =await donationReqCollection.find(query).toArray()
       res.send(result)
     })
     app.delete("/donationReq/:id", async (req, res) => {
@@ -197,9 +214,9 @@ async function run() {
       const status = req.body.changeStatus
       const id = req?.body?._id
       const email = req.params.email
-      const query = { requesterEmail: email , _id : new ObjectId(id) }
+      const query = { requesterEmail: email, _id: new ObjectId(id) }
       const options = { upsert: true };
-      const result =await donationReqCollection.updateOne(query,{$set:{status}}, options)
+      const result = await donationReqCollection.updateOne(query, { $set: { status } }, options)
       res.send(result)
     })
     // Send a ping to confirm a successful connection
