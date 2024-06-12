@@ -54,6 +54,7 @@ async function run() {
 
     const userCollection = client.db("BloodBank").collection("user")
     const donationReqCollection = client.db("BloodBank").collection("DonationReq")
+    const BlogsCollection = client.db("BloodBank").collection("Blogs")
 
     // auth related api
     app.post('/jwt', async (req, res) => {
@@ -79,7 +80,6 @@ async function run() {
             sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
           })
           .send({ success: true })
-        console.log('Logout successful')
       } catch (err) {
         res.status(500).send(err)
       }
@@ -104,6 +104,23 @@ async function run() {
       const result = await upazilaCollection.find(query).toArray()
       res.send(result)
 
+    })
+    //create blogs
+    app.post("/Blogs" , async(req ,res)=>{
+      const blog =req.body
+      const result = await BlogsCollection.insertOne(blog)
+      res.send(result)
+    })
+    //get blogs
+    app.get("/blogs", async(req ,res)=>{
+      let query = {}
+      const status = req?.query?.status
+      if (status && status !== "null" && status !== "undefined" ) {
+        query ={status}
+      }
+
+      const result =await BlogsCollection.find(query).toArray()
+      res.send(result)
     })
     //  create user
 
