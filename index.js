@@ -202,6 +202,7 @@ async function run() {
       const Request = req.body;
       const id = req.query.id
       const options = { upsert: true };
+      Request.timestamp = new Date();
       if (id && id !== "null" && id !== "undefined") {
         const result = await donationReqCollection.updateOne({_id : new ObjectId(id)}, { $set: {...Request} }, options)
         
@@ -215,6 +216,11 @@ async function run() {
       const email = req.params.email
       const query = { requesterEmail: email }
       const result = await donationReqCollection.find(query).toArray()
+      res.send(result)
+    })
+    //grt Recent 3 data
+    app.get("/recent",verifyToken , async(req,res)=>{
+      const result =await donationReqCollection.find().sort({timestamp: -1}).limit(3).toArray()
       res.send(result)
     })
     app.get("/allRequest", verifyToken, async(req ,res)=>{
