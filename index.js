@@ -105,32 +105,32 @@ async function run() {
 
     })
     //create blogs
-    app.post("/Blogs" , async(req ,res)=>{
-      const blog =req.body
+    app.post("/Blogs", async (req, res) => {
+      const blog = req.body
       const result = await BlogsCollection.insertOne(blog)
       res.send(result)
     })
     //get blogs
-    app.get("/blogs", async(req ,res)=>{
+    app.get("/blogs", async (req, res) => {
       let query = {}
       const status = req?.query?.status
-      if (status && status !== "null" && status !== "undefined" ) {
-        query ={status}
+      if (status && status !== "null" && status !== "undefined") {
+        query = { status }
       }
-      const result =await BlogsCollection.find(query).toArray()
+      const result = await BlogsCollection.find(query).toArray()
       res.send(result)
     })
     //publish
-    app.patch("/blogs/:id",verifyToken, async(req ,res)=>{
-      const id =req.params.id
-      const {status}=req.body
-      const filter = {_id : new ObjectId(id)}
-      const result = await BlogsCollection.updateOne(filter ,{$set:{status : !status}})
+    app.patch("/blogs/:id", verifyToken, async (req, res) => {
+      const id = req.params.id
+      const { status } = req.body
+      const filter = { _id: new ObjectId(id) }
+      const result = await BlogsCollection.updateOne(filter, { $set: { status: !status } })
       res.send(result)
     })
-    app.delete("/blogs/:id", verifyToken, async(req ,res)=>{
-      const id =req.params.id
-      const filter = {_id : new ObjectId(id)}
+    app.delete("/blogs/:id", verifyToken, async (req, res) => {
+      const id = req.params.id
+      const filter = { _id: new ObjectId(id) }
       const result = await BlogsCollection.deleteOne(filter)
       res.send(result)
     })
@@ -146,8 +146,17 @@ async function run() {
       const result = await userCollection.insertOne(user)
       res.send(result)
     })
+    // search Donor 
+    app.get("/Search", async (req, res) => {
+      const data =req.query
+      const filter = {
+        ...data
+      }
+      const result = await userCollection.find(filter).toArray()
+      res.send(result)
+    })
     //get all user
-    app.get("/users",verifyToken, async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const sort = req.query.sort
       console.log(sort)
       let filter = {}
@@ -168,7 +177,7 @@ async function run() {
       const result = await userCollection.findOne(query)
       res.send(result)
     })
-    app.put("/user/:email",verifyToken, async (req, res) => {
+    app.put("/user/:email", verifyToken, async (req, res) => {
       const user = req.body;
       const email = req.params.email
       const isStatus = req.query.status;
@@ -198,54 +207,70 @@ async function run() {
       res.send(result)
     })
     // donation req create
-    app.put("/donationReq",verifyToken, async (req, res) => {
+    app.put("/donationReq", verifyToken, async (req, res) => {
       const Request = req.body;
       const id = req.query.id
       const options = { upsert: true };
       Request.timestamp = new Date();
       if (id && id !== "null" && id !== "undefined") {
-        const result = await donationReqCollection.updateOne({_id : new ObjectId(id)}, { $set: {...Request} }, options)
-        
+        const result = await donationReqCollection.updateOne({ _id: new ObjectId(id) }, { $set: { ...Request } }, options)
+
         return res.send(result)
       }
       const result = await donationReqCollection.insertOne(Request)
       res.send(result)
     })
+    app.put("/donate/:id", verifyToken , async(req ,res)=>{
+      const id =req.params.id
+      const Donor = req.body
+      const options = { upsert: true };
+      const filter ={ _id : new ObjectId(id)}
+      const result = await donationReqCollection.updateOne(filter ,{$set:{status:"inprogress" , donor : Donor}}, options)
+      res.send(result)
+
+    })
     //get all donation requests
-    app.get("/donationReq/:email",verifyToken, async (req, res) => {
+    app.get("/donationReq/:email", verifyToken, async (req, res) => {
       const email = req.params.email
       const query = { requesterEmail: email }
       const result = await donationReqCollection.find(query).toArray()
       res.send(result)
     })
     //grt Recent 3 data
-    app.get("/recent",verifyToken , async(req,res)=>{
-      const result =await donationReqCollection.find().sort({timestamp: -1}).limit(3).toArray()
+    app.get("/recent/:email", verifyToken, async (req, res) => {
+      const email = req.params.email
+
+      const result = await donationReqCollection.find({requesterEmail:email}).sort({ timestamp: -1 }).limit(3).toArray()
       res.send(result)
     })
-    app.get("/allRequest", verifyToken, async(req ,res)=>{
+    app.get("/allRequest", verifyToken, async (req, res) => {
       let query = {}
       const status = req?.query?.status
-      if (status && status !== "null" && status !== "undefined" ) {
-        query ={status}
+      if (status && status !== "null" && status !== "undefined") {
+        query = { status }
       }
 
-      const result =await donationReqCollection.find(query).toArray()
+      const result = await donationReqCollection.find(query).toArray()
       res.send(result)
     })
+    // get pending request
+    app.get("/pendingReq",async(req, res)=>{
+      const result = await donationReqCollection.find({status: "pending"}).toArray()
+      res.send(result)
+    } )
     app.delete("/donationReq/:id", verifyToken, async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await donationReqCollection.deleteOne(query)
       res.send(result)
     })
-    app.get("/aDonationReq/:id",verifyToken, async (req, res) => {
+    app.get("/aDonationReq/:id", verifyToken, async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await donationReqCollection.findOne(query)
       res.send(result)
     })
-    app.patch("/donationReq/:email",verifyToken, async (req, res) => {
+    app.patch("/donationReq/:email", verifyToken, async (req, res) => {
       const status = req.body.changeStatus
       const id = req?.body?._id
       const email = req.params.email
