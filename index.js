@@ -4,6 +4,7 @@ require('dotenv').config()
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId, Db } = require('mongodb')
+const stripe = require("stripe")(process.env.STIPE_SECRECT)
 const jwt = require('jsonwebtoken')
 
 const port = process.env.PORT || 8000;
@@ -54,6 +55,7 @@ async function run() {
     const userCollection = client.db("BloodBank").collection("user")
     const donationReqCollection = client.db("BloodBank").collection("DonationReq")
     const BlogsCollection = client.db("BloodBank").collection("Blogs")
+    const fundsCollection = client.db("BloodBank").collection("funds")
 
     // auth related api
     app.post('/jwt', async (req, res) => {
@@ -82,6 +84,30 @@ async function run() {
       } catch (err) {
         res.status(500).send(err)
       }
+    })
+    // stripe
+    app.post("/create-payment-intent", verifyToken, async (req, res) => {
+      const { price } = req.body;
+      const IntPice = parseFloat(price) * 100;
+      if (!IntPice || IntPice < 1) {
+        return
+      }
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: IntPice,
+        currency: "usd",
+        // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      })
+      res.send({ clientSecret: paymentIntent.client_secret})
+
+    })
+    //fund collection
+    app.post('/funds',verifyToken , async(req ,res)=>{
+      const {paymentInfo}=req.body;
+      const result = await fundsCollection.insertOne(paymentInfo)
+      res.send(result)
     })
 
     //District ,thana
@@ -114,8 +140,11 @@ async function run() {
     app.get("/blogs", async (req, res) => {
       let query = {}
       const status = req?.query?.status
-      if (status && status !== "null" && status !== "undefined") {
-        query = { status }
+      if (status === "draft") {
+        query = { status: false }
+      }
+      if (status === "publish") {
+        query = { status: true }
       }
       const result = await BlogsCollection.find(query).toArray()
       res.send(result)
@@ -134,6 +163,12 @@ async function run() {
       const result = await BlogsCollection.deleteOne(filter)
       res.send(result)
     })
+    app.get("/blogs/:id", verifyToken, async (req, res) => {
+      const id = req.params.id
+      const filter = { _id: new ObjectId(id) }
+      const result = await BlogsCollection.findOne(filter)
+      res.send(result)
+    })
     //  create user
 
     app.post("/user", async (req, res) => {
@@ -148,7 +183,7 @@ async function run() {
     })
     // search Donor 
     app.get("/Search", async (req, res) => {
-      const data =req.query
+      const data = req.query
       const filter = {
         ...data
       }
@@ -220,12 +255,12 @@ async function run() {
       const result = await donationReqCollection.insertOne(Request)
       res.send(result)
     })
-    app.put("/donate/:id", verifyToken , async(req ,res)=>{
-      const id =req.params.id
+    app.put("/donate/:id", verifyToken, async (req, res) => {
+      const id = req.params.id
       const Donor = req.body
       const options = { upsert: true };
-      const filter ={ _id : new ObjectId(id)}
-      const result = await donationReqCollection.updateOne(filter ,{$set:{status:"inprogress" , donor : Donor}}, options)
+      const filter = { _id: new ObjectId(id) }
+      const result = await donationReqCollection.updateOne(filter, { $set: { status: "inprogress", donor: Donor } }, options)
       res.send(result)
 
     })
@@ -240,7 +275,7 @@ async function run() {
     app.get("/recent/:email", verifyToken, async (req, res) => {
       const email = req.params.email
 
-      const result = await donationReqCollection.find({requesterEmail:email}).sort({ timestamp: -1 }).limit(3).toArray()
+      const result = await donationReqCollection.find({ requesterEmail: email }).sort({ timestamp: -1 }).limit(3).toArray()
       res.send(result)
     })
     app.get("/allRequest", verifyToken, async (req, res) => {
@@ -254,10 +289,10 @@ async function run() {
       res.send(result)
     })
     // get pending request
-    app.get("/pendingReq",async(req, res)=>{
-      const result = await donationReqCollection.find({status: "pending"}).toArray()
+    app.get("/pendingReq", async (req, res) => {
+      const result = await donationReqCollection.find({ status: "pending" }).toArray()
       res.send(result)
-    } )
+    })
     app.delete("/donationReq/:id", verifyToken, async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
