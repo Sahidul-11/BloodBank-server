@@ -20,7 +20,7 @@ app.use(cors(corsOptions))
 app.use(express.json())
 app.use(cookieParser())
 
-// Verify Token Middleware
+// Verify Token
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token
   if (!token) {
@@ -51,11 +51,38 @@ async function run() {
     const divisionsCollection = client.db("BloodBank").collection("Division")
     const districtCollection = client.db("BloodBank").collection("district")
     const upazilaCollection = client.db("BloodBank").collection("upazilla")
-
+ 
     const userCollection = client.db("BloodBank").collection("user")
     const donationReqCollection = client.db("BloodBank").collection("DonationReq")
     const BlogsCollection = client.db("BloodBank").collection("Blogs")
     const fundsCollection = client.db("BloodBank").collection("funds")
+
+    // verify admin 
+  const verifyAdmin = async (req, res, next) => {
+    const user = req.user
+    const query = { email: user?.email }
+    const result = await userCollection.findOne(query)
+    if (!result || result?.role !== 'admin')
+      return res.status(401).send({ message: 'unauthorized access!!' })
+
+    next()
+  }
+  // verify host 
+  const verifyBoth = async (req, res, next) => {
+    const user = req.user
+    const query = { email: user?.email }
+    const result = await userCollection.findOne(query)
+    if (!result) {
+      return res.status(401).send({ message: 'unauthorized access!!' })
+    }
+    else if (result?.role === 'admin' || result?.role === 'volunteer') {
+      next()
+    } 
+    else{
+      return res.status(401).send({ message: 'unauthorized access!!' })
+    } 
+  }
+
 
     // auth related api
     app.post('/jwt', async (req, res) => {
@@ -104,12 +131,17 @@ async function run() {
 
     })
     //fund collection
-    app.post('/funds',verifyToken , async(req ,res)=>{
-      const {paymentInfo}=req.body;
+    app.post('/funding',verifyToken, async(req ,res)=>{
+      const paymentInfo=req.body.paymentInfo
       const result = await fundsCollection.insertOne(paymentInfo)
       res.send(result)
     })
-
+    app.get('/funding/:email', verifyToken, async(req ,res)=>{
+      const email = req.params.email
+      const result = await fundsCollection.find({ email }).sort({ date: -1 }).limit(15).toArray()
+      res.send(result)
+    })
+  
     //District ,thana
     app.get("/division", async (req, res) => {
       const result = await divisionsCollection.find().toArray()
@@ -130,8 +162,20 @@ async function run() {
       res.send(result)
 
     })
+    //get panel
+    app.get("/panel",verifyToken , verifyBoth , async (req , res)=>{
+      const funds = await fundsCollection.find({},{
+        projection :{
+          amount : 1
+        }
+      }).toArray()
+      const totalFund = funds.reduce((sun ,fund)=> sun + parseInt(fund.amount) ,0)
+      const users = await userCollection.estimatedDocumentCount()
+      const donationRequests=await donationReqCollection.estimatedDocumentCount()
+      res.send({totalFund ,users ,donationRequests})
+    })
     //create blogs
-    app.post("/Blogs", async (req, res) => {
+    app.post("/Blogs",verifyToken,verifyBoth, async (req, res) => {
       const blog = req.body
       const result = await BlogsCollection.insertOne(blog)
       res.send(result)
@@ -150,14 +194,14 @@ async function run() {
       res.send(result)
     })
     //publish
-    app.patch("/blogs/:id", verifyToken, async (req, res) => {
+    app.patch("/blogs/:id", verifyToken,verifyAdmin, async (req, res) => {
       const id = req.params.id
       const { status } = req.body
       const filter = { _id: new ObjectId(id) }
       const result = await BlogsCollection.updateOne(filter, { $set: { status: !status } })
       res.send(result)
     })
-    app.delete("/blogs/:id", verifyToken, async (req, res) => {
+    app.delete("/blogs/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id
       const filter = { _id: new ObjectId(id) }
       const result = await BlogsCollection.deleteOne(filter)
@@ -191,7 +235,7 @@ async function run() {
       res.send(result)
     })
     //get all user
-    app.get("/users", verifyToken, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const sort = req.query.sort
       console.log(sort)
       let filter = {}
@@ -205,8 +249,13 @@ async function run() {
       const result = await userCollection.find(filter).toArray()
       res.send(result)
     })
+    //top user
+    app.get("/topUser", async(req,res)=>{
+      const result = await userCollection.find().limit(6).toArray()
+      res.send(result)
+    })
     // get a user by email
-    app.get("/user/:email", async (req, res) => {
+    app.get("/user/:email",verifyToken, async (req, res) => {
       const email = req.params.email
       const query = { email: email }
       const result = await userCollection.findOne(query)
@@ -278,7 +327,7 @@ async function run() {
       const result = await donationReqCollection.find({ requesterEmail: email }).sort({ timestamp: -1 }).limit(3).toArray()
       res.send(result)
     })
-    app.get("/allRequest", verifyToken, async (req, res) => {
+    app.get("/allRequest", verifyToken, verifyBoth, async (req, res) => {
       let query = {}
       const status = req?.query?.status
       if (status && status !== "null" && status !== "undefined") {
